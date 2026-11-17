@@ -118,7 +118,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('#rows tr'), function (tr) {
       tr.addEventListener('click', function () { location.hash = '#detail=' + tr.getAttribute('data-slug'); });
     });
-    var heads = document.querySelectorAll('#board th[data-k]');
+    var heads = document.querySelectorAll('#board-table th[data-k]');
     Array.prototype.forEach.call(heads, function (th) {
       var k = th.getAttribute('data-k');
       var arrow = k === state.sortKey ? (state.sortDir === 1 ? ' ▲' : ' ▼') : '';
@@ -137,9 +137,9 @@
       return;
     }
     var m = r.model;
-    var multNote = m.category_comps >= 3
-      ? 'Median mcap / TVL of ' + m.category_comps + ' live-token comps in ' + (r.category || 'this category') + '.'
-      : 'Fewer than 3 live-token comps in this category, so the global median across all live-token protocols is used.';
+    var multNote = m.fallback
+      ? 'Fewer than 3 live-token comps in ' + (r.category || 'this category') + ', so the global median across all ' + m.category_comps + ' live-token protocols is used.'
+      : 'Median mcap / TVL of ' + m.category_comps + ' live-token comps in ' + (r.category || 'this category') + '.';
     var growthNote = r.change_7d === null ? '7-day change unreported, counted as 0%.' : '7-day TVL change ' + (r.change_7d > 0 ? '+' : '') + r.change_7d.toFixed(2) + '%, clamped to −60%…+120%.';
     box.hidden = false;
     box.innerHTML =
@@ -192,7 +192,7 @@
     renderBoard();
     renderDetail();
     $('live-section').style.display = state.pretoken ? 'none' : '';
-    if (detailSlug) window.scrollTo(0, 0);
+    window.scrollTo(0, 0);
   }
 
   // ---- events --------------------------------------------------------------------------
@@ -211,7 +211,7 @@
     location.hash = '#board';
     renderBoard();
   });
-  Array.prototype.forEach.call(document.querySelectorAll('#board th[data-k]'), function (th) {
+  Array.prototype.forEach.call(document.querySelectorAll('#board-table th[data-k]'), function (th) {
     th.addEventListener('click', function () {
       var k = th.getAttribute('data-k');
       if (state.sortKey === k) state.sortDir = -state.sortDir;

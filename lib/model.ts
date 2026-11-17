@@ -102,6 +102,7 @@ export interface BoardRow {
   model: {
     category_multiple: number;
     category_comps: number;
+    fallback: boolean;
     growth_pct: number;
     growth_multiplier: number;
     maturity_multiplier: number;
@@ -373,6 +374,7 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
     model: {
       category_multiple: s.multiple.multiple,
       category_comps: s.multiple.comps,
+      fallback: s.multiple.fallback,
       growth_pct: s.growthPct,
       growth_multiplier: s.growthMult,
       maturity_multiplier: s.maturityMult,
