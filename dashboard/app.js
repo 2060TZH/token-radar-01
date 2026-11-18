@@ -54,12 +54,67 @@
     '0.05–2.00. The growth multiplier is <code>1 + clamped 7-day TVL change ÷ 100 × 0.5</code> (change clamped to ' +
     '−60%…+120%; unreported counts as 0). The maturity multiplier is <code>0.6 + min(age, 1095) ÷ 1095 × 0.4</code> ' +
     '(unknown listing date counts as 365 days). Nothing is hardcoded by name: the same formula scores every row, ' +
-    'and every multiple below comes from this snapshot\u2019s own live-token comps.';
+    'and every multiple below comes from this snapshot\u2019s own live-token comps. ' +
+    '<a href="#calibration">See every live comp behind each multiple in the calibration view</a>.';
   $('multiple-rows').innerHTML = D.multiples.map(function (m) {
     var label = m.category === null ? 'All categories (global fallback)' : m.category;
     var source = m.fallback ? 'global median — fewer than 3 comps in this category' : 'median of ' + m.comps + ' live comps';
     return '<tr><td>' + esc(label) + '</td><td class="num">' + m.multiple.toFixed(4) + '</td><td class="num">' + m.comps + '</td><td>' + esc(source) + '</td></tr>';
   }).join('');
+
+  // ---- worked example: the #1 row's exact arithmetic, and how many of the top 10 use the fallback
+  (function () {
+    var top = rows[0];
+    if (!top) return;
+    var m = top.model;
+    var fb = rows.slice(0, 10).filter(function (r) { return r.model.fallback; }).length;
+    var multSrc = m.fallback
+      ? 'the global median across all ' + m.category_comps + ' live-token protocols, because ' + (top.category || 'this category') + ' has fewer than 3 live comps of its own'
+      : 'the median of ' + m.category_comps + ' live-token comps in ' + (top.category || 'this category');
+    $('model-example').innerHTML =
+      '<b>Worked example — #' + top.rank + ' ' + esc(top.name) + ':</b> ' + full(top.tvl_usd) + ' TVL × <b>' +
+      m.category_multiple.toFixed(4) + '</b> (' + esc(multSrc) + ') × <b>' + m.growth_multiplier.toFixed(4) +
+      '</b> growth × <b>' + m.maturity_multiplier.toFixed(4) + '</b> maturity = <b>' + full(top.implied_value_usd) +
+      '</b>. Of the top 10, <b>' + fb + '</b> use the global fallback — their categories have fewer than 3 live-token ' +
+      'comps in this snapshot, so the board ranks them mostly on TVL. The calibration view shows the comps behind ' +
+      'each of those calls.';
+  })();
+
+  // ---- top 10 strip ---------------------------------------------------------------
+  $('top10').innerHTML = rows.slice(0, 10).map(function (r) {
+    var badge = r.watchlist ? '<span class="badge">watchlist</span>' : '<span class="badge early">early</span>';
+    return '<a class="top10-card" href="#detail=' + esc(r.slug) + '">' +
+      '<span class="top10-rank">#' + r.rank + '</span>' +
+      '<span class="top10-name">' + esc(r.name) + '</span>' + badge +
+      '<span class="top10-value">' + money(r.implied_value_usd) + '</span></a>';
+  }).join('');
+
+  // ---- calibration view --------------------------------------------------------------
+  (function () {
+    var cal = D.calibration || [];
+    var global = cal.length > 0 ? cal[cal.length - 1] : null;
+    var html = cal.slice(0, cal.length - 1).map(function (c) {
+      var label = c.category === null ? 'No category' : c.category;
+      var head = c.fallback
+        ? label + ' — only ' + c.comps + ' live comp' + (c.comps === 1 ? '' : 's') + ', too few for its own median, so the global median ' + global.multiple.toFixed(4) + ' applies'
+        : label + ' — multiple ' + c.multiple.toFixed(4) + ', median of ' + c.comps + ' live comps';
+      var body = c.entries.map(function (e) {
+        return '<tr><td><b>' + esc(e.name) + '</b><br><span class="dim">' + esc(e.slug) + '</span></td>' +
+          '<td class="num">' + money(e.mcap_usd) + '</td><td class="num">' + money(e.tvl_usd) +
+          '</td><td class="num"><b>' + e.ratio.toFixed(4) + '</b></td></tr>';
+      }).join('');
+      return '<h3>' + esc(head) + '</h3><div class="table-wrap"><table><thead><tr>' +
+        '<th>Live-token comp</th><th>Market cap</th><th>TVL</th><th>mcap / TVL</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+    }).join('');
+    if (global) {
+      html += '<h3>All categories (global fallback) — median ' + global.multiple.toFixed(4) + ' across ' + global.comps +
+        ' live-token protocols in ' + (cal.length - 1) + ' categories</h3>' +
+        '<p class="hint">The global median is computed across every live-token protocol listed above, one per category. ' +
+        'It is the multiple for every category with fewer than 3 live comps, and for any protocol whose category ' +
+        'records no live token at all.</p>';
+    }
+    $('calibration-rows').innerHTML = html;
+  })();
 
   // ---- filter controls ----------------------------------------------------------
   function uniqSorted(values) {
@@ -157,7 +212,8 @@
       m.growth_multiplier.toFixed(4) + '</b> growth × <b>' + m.maturity_multiplier.toFixed(4) +
       '</b> maturity = <b class="result">' + full(r.implied_value_usd) + '</b></p>' +
       '<p class="hint">' + esc(multNote) + ' ' + esc(growthNote) + ' Maturity: 0.6 + min(' +
-      (m.age_days === null ? '365 (unknown listing date)' : m.age_days) + ', 1095) ÷ 1095 × 0.4 = ' + m.maturity_multiplier.toFixed(4) + '.</p>' +
+      (m.age_days === null ? '365 (unknown listing date)' : m.age_days) + ', 1095) ÷ 1095 × 0.4 = ' + m.maturity_multiplier.toFixed(4) + '. ' +
+      '<a href="#calibration">See every live comp behind this multiple</a>.</p>' +
       '<h3>How to farm it</h3>' +
       '<ol class="farm">' + r.farm_steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
       '<p style="margin-top:16px"><a href="#board">Back to the board</a></p>';
@@ -174,25 +230,38 @@
   }).join('');
 
   // ---- hash routing ------------------------------------------------------------------
+  function showView(view) {
+    var board = view !== 'calibration';
+    Array.prototype.forEach.call(document.querySelectorAll('.board-view'), function (el) { el.style.display = board ? '' : 'none'; });
+    Array.prototype.forEach.call(document.querySelectorAll('.cal-view'), function (el) { el.hidden = board; });
+  }
   function applyHash() {
     var h = location.hash || '#board';
     detailSlug = null;
     if (h.indexOf('#detail=') === 0) {
       detailSlug = decodeURIComponent(h.slice(8));
       $('filter-note').hidden = true;
+      showView('board');
     } else if (h === '#filtered') {
       state.cat = 'Lending';
       $('cat').value = 'Lending';
       var n = filtered().length;
       $('filter-note').hidden = false;
       $('filter-note').textContent = 'Filtered view: category = Lending. ' + n + ' rows match. Change the filters above to explore the rest of the board.';
+      showView('board');
+    } else if (h === '#calibration') {
+      $('filter-note').hidden = true;
+      showView('calibration');
     } else {
       $('filter-note').hidden = true;
+      showView('board');
     }
     renderBoard();
     renderDetail();
     $('live-section').style.display = state.pretoken ? 'none' : '';
-    window.scrollTo(0, 0);
+    if (h === '#model') $('model').scrollIntoView();
+    else if (h === '#live-section') $('live-section').scrollIntoView();
+    else window.scrollTo(0, 0);
   }
 
   // ---- events --------------------------------------------------------------------------

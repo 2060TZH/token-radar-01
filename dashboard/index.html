@@ -13,12 +13,18 @@
     <h1>Which pre-token protocol is worth farming next?</h1>
     <p class="lede" id="lede"></p>
     <p class="meta" id="meta"></p>
+    <nav class="topnav" aria-label="Views">
+      <a href="#board">Board</a>
+      <a href="#calibration">Calibration</a>
+      <a href="#model">How the model works</a>
+      <a href="#live-section">Live tokens</a>
+    </nav>
   </div>
 </header>
 <main class="wrap">
   <section class="stats" id="stats" aria-label="Board summary"></section>
 
-  <section class="controls" aria-label="Filters">
+  <section class="controls board-view" aria-label="Filters">
     <label>Search <input id="q" type="search" placeholder="Name or slug…" autocomplete="off"></label>
     <label>Category <select id="cat"><option value="">All categories</option></select></label>
     <label>Chain <select id="chain"><option value="">All chains</option></select></label>
@@ -32,13 +38,15 @@
     <label class="check"><input id="pretoken" type="checkbox"> Pre-token only (hide tokens that already trade)</label>
     <button id="reset" type="button">Reset filters</button>
   </section>
-  <p class="filter-note" id="filter-note" hidden></p>
+  <p class="filter-note board-view" id="filter-note" hidden></p>
 
   <section id="detail" hidden></section>
 
-  <section id="board-section">
+  <section id="board-section" class="board-view">
+    <h2>Top 10 by implied value</h2>
+    <div class="top10" id="top10" aria-label="Top 10 protocols"></div>
     <h2>The board</h2>
-    <p class="hint">Click a row for its model math and six-step farm plan. Click a column header to sort.</p>
+    <p class="hint">Click a row for its model math and eight-step farm plan. Click a column header to sort.</p>
     <div class="table-wrap">
       <table id="board-table">
         <thead><tr>
@@ -57,9 +65,16 @@
     <p id="count" class="count"></p>
   </section>
 
+  <section id="calibration-section" class="cal-view" hidden>
+    <h2>Calibration — where every multiple comes from</h2>
+    <p class="hint">Each category's multiple is the median market-cap-to-TVL ratio of the snapshot's own live-token protocols in that category. A category with fewer than 3 live comps has no median of its own, so it uses the global median across all live-token protocols instead — those rows are marked as fallback. Ratios are shown rounded to 4 decimals; each median is computed from the unrounded ratios, then rounded to 4 decimals. <a href="#board">Back to the board</a></p>
+    <div id="calibration-rows" aria-label="Calibration by category"></div>
+  </section>
+
   <section id="model">
     <h2>How the model works</h2>
     <p id="model-text"></p>
+    <p id="model-example"></p>
     <div class="table-wrap">
       <table id="multiples">
         <thead><tr><th>Category</th><th>Multiple (mcap / TVL)</th><th>Live comps</th><th>Source</th></tr></thead>

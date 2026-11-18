@@ -74,7 +74,7 @@ const dashboardFiles = copyFiles(join(here, 'dashboard'), join(out, 'dashboard')
 if (dashboardFiles.length === 0) fail('dashboard/ is empty: the page is what the judge reads');
 const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
 if (shots.length < 3) {
-  fail(`screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view`);
+  fail(`screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a calibration view`);
 }
 for (const name of shots) {
   if (!IMAGE_NAME.test(name)) fail(`screenshots/${name}: a name is letters, digits and . _ -, 1 to 128 characters`);

@@ -153,7 +153,7 @@ if (board) {
     }
     if (farmIssue) break;
   }
-  row('farm_steps', farmIssue === null, farmIssue ?? `all ${board.length} rows carry 6 steps of 20–600 chars`);
+  row('farm_steps', farmIssue === null, farmIssue ?? `all ${board.length} rows carry 8 steps of 20–600 chars`);
 } else {
   row('sorted_by_value', false, 'no board to sort');
   row('coverage', false, 'no board to cover');

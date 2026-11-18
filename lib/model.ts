@@ -84,6 +84,29 @@ export interface CategoryMultiple {
   fallback: boolean;
 }
 
+/** One live-token protocol behind a multiple: its own mcap/TVL, shown rounded to 4 decimals. */
+export interface CalibrationComp {
+  slug: string;
+  name: string;
+  mcap_usd: number;
+  tvl_usd: number;
+  ratio: number;
+}
+
+/**
+ * One category's calibration: every live-token comp the category's multiple comes from, the
+ * multiple itself, and whether the category fell back to the global median (fewer than 3 comps).
+ * The global entry (category null) carries no comp list — its 128 comps are the ones listed under
+ * their own categories above it — only its count and its median.
+ */
+export interface CategoryCalibration {
+  category: string | null;
+  multiple: number;
+  comps: number;
+  fallback: boolean;
+  entries: CalibrationComp[];
+}
+
 /** One row of board.json: a ranked pre-token protocol with its farm plan. */
 export interface BoardRow {
   rank: number;
@@ -134,6 +157,7 @@ export interface RadarData {
   early_size: number;
   live_size: number;
   multiples: CategoryMultiple[];
+  calibration: CategoryCalibration[];
   rows: BoardRow[];
   live: LiveRow[];
 }
@@ -208,6 +232,45 @@ function multipleFor(category: string | null, multiples: { byCategory: Map<strin
   const hit = multiples.byCategory.get(category ?? '');
   if (hit !== undefined) return hit;
   return { category, multiple: multiples.global.multiple, comps: multiples.global.comps, fallback: true };
+}
+
+/**
+ * The calibration table: for every category that carries at least one live-token protocol, the
+ * comps themselves (each comp's own mcap/TVL, highest first, ties by slug), the median multiple
+ * the model uses for that category, and whether the category fell back to the global median.
+ * Categories sort by name, the global entry comes last with an empty comp list — its comps are the
+ * ones listed under their own categories. Ratios are shown rounded to 4 decimals; each median is
+ * computed from the unrounded ratios, then rounded to 4 decimals.
+ */
+export function calibrationRows(snapshot: Snapshot, model: ModelConstants = MODEL): CategoryCalibration[] {
+  const multiples = categoryMultiples(snapshot, model);
+  const byKey = new Map<string, CalibrationComp[]>();
+  for (const p of snapshot.protocols) {
+    if (p.mcap_usd === null || p.mcap_usd <= 0 || p.tvl_usd <= 0) continue;
+    const key = p.category ?? '';
+    const list = byKey.get(key) ?? [];
+    list.push({ slug: p.slug, name: p.name, mcap_usd: p.mcap_usd, tvl_usd: p.tvl_usd, ratio: round4(p.mcap_usd / p.tvl_usd) });
+    byKey.set(key, list);
+  }
+  const rows: CategoryCalibration[] = [];
+  for (const [key, entries] of byKey) {
+    entries.sort((a, b) => b.ratio - a.ratio || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+    const hit = multiples.byCategory.get(key);
+    rows.push({
+      category: key === '' ? null : key,
+      multiple: hit !== undefined ? hit.multiple : multiples.global.multiple,
+      comps: entries.length,
+      fallback: hit === undefined,
+      entries,
+    });
+  }
+  rows.sort((a, b) => {
+    const ka = a.category ?? '';
+    const kb = b.category ?? '';
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  rows.push({ category: null, multiple: multiples.global.multiple, comps: multiples.global.comps, fallback: false, entries: [] });
+  return rows;
 }
 
 /** The implied value and its breakdown for one protocol. */
@@ -313,10 +376,56 @@ function actionFor(p: SnapshotProtocol, capital: number, chain: string): string 
   return `Deposit $${capital} of USDC into ${name} on ${chain} and keep the position open so it counts as usage.`;
 }
 
+/** The category's main risk, in words a farmer can act on: what can go wrong before depositing. */
+function riskFor(p: SnapshotProtocol): string {
+  const c = (p.category ?? '').toLowerCase();
+  if (c.includes('lend') || c.includes('cdp') || c.includes('collateral')) {
+    return `a price drop can liquidate the collateral, and borrow rates can spike while you hold. Keep the loan-to-value well below the limit and check the health factor every week.`;
+  }
+  if (c.includes('dex') || c.includes('yield') || c.includes('leveraged farm') || c.includes('liquidity manager')) {
+    return `impermanent loss can eat the fees you earn, and a thin pool can move against you when you exit. Start with a small position and check the pool's depth before you add more.`;
+  }
+  if (c.includes('bridge')) {
+    return `a bridge bug or a stuck transaction can strand funds on the wrong chain for days. Bridge a small test amount first and only send more once it arrives.`;
+  }
+  if (c.includes('stak') || c.includes('restak')) {
+    return `slashing or a validator failure can cut the stake, and unstaking can take days or weeks. Only stake funds you do not need soon, and note the unstaking delay before you commit.`;
+  }
+  if (c.includes('perpetual') || c.includes('derivative') || c.includes('options')) {
+    return `leverage can liquidate a small position in one sharp move, and funding fees add up while you hold. Keep the position small and hedged, and close it the same week.`;
+  }
+  if (c.includes('prediction')) {
+    return `a market can resolve against you and the stake is lost in full. Bet only the amount you planned to farm with, and never chase a loss with a second market.`;
+  }
+  if (c.includes('curator') || c.includes('allocator')) {
+    return `the vault's strategy can underperform or change, and the manager's fee comes out of your return. Read the vault's strategy and fee note before you deposit.`;
+  }
+  if (c.includes('stable')) {
+    return `a stable asset can lose its peg, and its backing can be thinner than advertised. Check what backs it and how redemptions work before you hold a large balance.`;
+  }
+  if (c.includes('rwa')) {
+    return `the issuer or the underlying asset can default, and redemptions can be slow or gated. Read the issuer's terms and keep the position small.`;
+  }
+  if (c.includes('insurance')) {
+    return `a claim can be denied if the event falls outside the policy wording. Read what the cover actually pays for before you buy it.`;
+  }
+  if (c.includes('index')) {
+    return `the index can rebalance into weaker assets, and the underlying tokens carry their own risks. Check what the index holds before you buy it.`;
+  }
+  if (c.includes('launchpad')) {
+    return `a sale can fill only partly, and the token can fall below its sale price on listing. Only stake what you can afford to hold through the listing.`;
+  }
+  if (c.includes('farm')) {
+    return `rewards can be cut without warning and the farm's token can fall while you hold. Check the reward rate weekly and exit if it drops.`;
+  }
+  return `a smart-contract bug can drain the protocol, and its points rules can change without warning. Start small, use a fresh wallet, and never deposit money you need soon.`;
+}
+
 /**
- * A protocol's farm plan: six steps, each an action with its cost and time stated. The plan is
+ * A protocol's farm plan: eight steps, each an action with its cost and time stated. The plan is
  * derived from the protocol's own record (category, chains, TVL, age), never from a hand-written
- * list of names.
+ * list of names. Step 2 names the category's main risk before any capital goes in; step 8 is the
+ * weekly review that decides when to unwind and rotate.
  */
 export function farmSteps(p: SnapshotProtocol, age: number | null): string[] {
   const chain = chainOf(p);
@@ -325,11 +434,13 @@ export function farmSteps(p: SnapshotProtocol, age: number | null): string[] {
   const gas = capital >= 150 ? 8 : 4;
   const steps = [
     `Set up a fresh wallet that holds only the funds you plan to farm, and write its seed phrase on paper and store it offline. Cost: under $3 of gas for the first transaction. Time: 5 minutes.`,
+    `Before you deposit, know what can go wrong: ${riskFor(p)} Cost: nothing to read, but set a loss limit before you deposit. Time: 10 minutes.`,
     `${actionFor(p, capital, chain)} Cost: $${capital} of capital and about $${gas} of gas. Time: 15 minutes to set up.`,
     `Make one qualifying action each week, such as a deposit, a borrow, a swap or a vote, so the wallet stays active. Cost: about $2 of gas a week. Time: 10 minutes a week.`,
     `Hold the position for at least ${hold} days so the activity is counted in more than one snapshot. Cost: the $${capital} stays in the position. Time: ${hold} days.`,
     `Before you withdraw anything, open the protocol's own points or rewards page from the link it publishes and check your balance there. Cost: no fee to check, and never pay to claim. Time: 10 minutes.`,
     `Write the wallet address, the dates and every transaction hash in a farm log so you can repeat the position or unwind it later. Cost: nothing but the log. Time: 5 minutes.`,
+    `Check the position once a week: open the points page and your wallet, confirm the balance is still growing, and look at the protocol's TVL. If TVL has fallen by half, the points page stops updating, or the rules change, unwind the position and rotate the capital to the next protocol on this board. Cost: gas to exit when you rotate. Time: 10 minutes a week.`,
   ];
   return steps.map((s) => (s.length > 600 ? `${s.slice(0, 596)}...` : s));
 }
@@ -421,6 +532,7 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     early_size: early,
     live_size: live.length,
     multiples: multiplesList,
+    calibration: calibrationRows(snapshot, model),
     rows: board,
     live,
   };

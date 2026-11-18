@@ -28,6 +28,22 @@ body {
 h1 { margin: 0 0 12px; font-size: 34px; line-height: 1.2; letter-spacing: -.01em; }
 .lede { margin: 0 0 8px; font-size: 18px; color: #cbd5e1; max-width: 860px; }
 .meta { margin: 0; font-size: 13px; color: var(--muted); }
+.topnav { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+.topnav a { color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 600; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; }
+.topnav a:hover { color: var(--accent); border-color: var(--accent); }
+#model-example { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; }
+#model-example b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.top10 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px; }
+.top10-card { display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; color: var(--ink); text-decoration: none; }
+.top10-card:hover { border-color: var(--accent); }
+.top10-rank { font-size: 12px; font-weight: 700; color: var(--accent); }
+.top10-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top10-value { font-size: 16px; font-weight: 700; color: var(--good); font-variant-numeric: tabular-nums; }
+.top10-card .badge { margin-left: 0; justify-self: start; }
+#calibration-section h3 { font-size: 17px; margin: 22px 0 10px; }
+#calibration-section .table-wrap { margin-bottom: 4px; }
+#calibration-section table td { white-space: normal; }
+#calibration-section a, #model a, #detail a { color: var(--accent); }
 main { padding-bottom: 48px; }
 section { margin-top: 28px; }
 h2 { font-size: 22px; margin: 0 0 10px; }
@@ -81,4 +97,5 @@ footer p { margin: 0; }
   h1 { font-size: 26px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .kv { grid-template-columns: repeat(2, 1fr); }
+  .top10 { grid-template-columns: repeat(2, 1fr); }
 }
